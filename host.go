@@ -281,6 +281,7 @@ func (h *BasicExtHost)Listen(pid protocol.ID, rendezvous string) {
 
         if err == nil {
           h.PeerStores[pid].AddAddrs(peer.ID, peer.Addrs, peerstore.TempAddrTTL)
+          MasterLogger.Debugf("Discovered peer %s for protocol %q with rendezvous %q", peer.ID, pid, rendezvous) //--------------------------
         }
       }()
     }

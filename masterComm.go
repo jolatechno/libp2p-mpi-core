@@ -152,7 +152,7 @@ func NewMasterComm(ctx context.Context, slaveComm SlaveComm, param Param) (_ Mas
   })
 
   close := func() error {
-    MasterLogger.Debug("[MasterComm] Closing") //--------------------------
+    MasterLogger.Debug("Closing") //--------------------------
 
     for j := 1; j < param.N; j++ {
       i := j

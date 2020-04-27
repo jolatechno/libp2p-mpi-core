@@ -422,4 +422,6 @@ func (r *BasicRemote)Reset(stream io.ReadWriteCloser, slaveId int, msgs ...inter
     }
 
   }()
+
+  RemoteLogger.Debug("Reset done") //--------------------------
 }

@@ -133,6 +133,8 @@ func NewMpi(ctx context.Context, config Config, host ExtHost, store Store) (Mpi,
         return
       }
 
+      IpfsLogger.Infof("Found file %q", f) //--------------------------
+
       err = mpi.Add(f)
       if err != nil {
         IpfsLogger.Warn(err) //--------------------------
