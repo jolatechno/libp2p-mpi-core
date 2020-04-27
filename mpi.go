@@ -275,18 +275,21 @@ func (m *BasicMpi)Add(file string) error {
 
       MpiLogger.Debugf("Requested a new slaveComm, first message : %q", str) //--------------------------
 
-      param, err := ParamFromString(str[:len(str) - 1])
+      param, err := ParamFromString(str)
       if err != nil {
+        MpiLogger.Warn(err) //--------------------------
         return
       }
 
       inter, err := m.NewInterface(m.Ctx, m.Path + InstalledHeader + file, param.N, param.Idx)
       if err != nil {
+        MpiLogger.Warn(err) //--------------------------
         return
       }
 
       logger, err := m.NewLogger(file, param.N, param.Idx)
       if err != nil {
+        MpiLogger.Warn(err) //--------------------------
         return
       }
 
@@ -300,12 +303,14 @@ func (m *BasicMpi)Add(file string) error {
 
         remotes[i], err = m.NewRemote(m.Ctx, 0)
         if err != nil {
+          MpiLogger.Warn(err) //--------------------------
           return
         }
       }
 
       comm, err := m.NewSlaveComm(m.Ctx, m.Host(), stream.(io.ReadWriteCloser), proto, param, inter, remotes)
       if err != nil {
+        MpiLogger.Warn(err) //--------------------------
         return
       }
 
