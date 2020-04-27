@@ -268,59 +268,62 @@ func (m *BasicMpi)Add(file string) error {
       }
     }()
 
-    reader := bufio.NewReader(stream)
+    scanner := bufio.NewScanner(stream)
 
-    str, err := reader.ReadString('\n')
-    if err != nil {
-      return
-    }
+    if scanner.Scan() {
+      str := scanner.Text()
 
-    MpiLogger.Debugf("Requested a new slaveComm, first message : %q", str) //--------------------------
+      MpiLogger.Debugf("Requested a new slaveComm, first message : %q", str) //--------------------------
 
-    param, err := ParamFromString(str[:len(str) - 1])
-    if err != nil {
-      return
-    }
-
-    inter, err := m.NewInterface(m.Ctx, m.Path + InstalledHeader + file, param.N, param.Idx)
-    if err != nil {
-      return
-    }
-
-    logger, err := m.NewLogger(file, param.N, param.Idx)
-    if err != nil {
-      return
-    }
-
-    inter.SetLogger(logger)
-
-    remotes := make([]Remote, param.N)
-    for i := 0; i < param.N; i++ {
-      if i == param.Idx {
-        continue
-      }
-
-      remotes[i], err = m.NewRemote(m.Ctx, 0)
+      param, err := ParamFromString(str[:len(str) - 1])
       if err != nil {
         return
       }
+
+      inter, err := m.NewInterface(m.Ctx, m.Path + InstalledHeader + file, param.N, param.Idx)
+      if err != nil {
+        return
+      }
+
+      logger, err := m.NewLogger(file, param.N, param.Idx)
+      if err != nil {
+        return
+      }
+
+      inter.SetLogger(logger)
+
+      remotes := make([]Remote, param.N)
+      for i := 0; i < param.N; i++ {
+        if i == param.Idx {
+          continue
+        }
+
+        remotes[i], err = m.NewRemote(m.Ctx, 0)
+        if err != nil {
+          return
+        }
+      }
+
+      comm, err := m.NewSlaveComm(m.Ctx, m.Host(), stream.(io.ReadWriteCloser), proto, param, inter, remotes)
+      if err != nil {
+        return
+      }
+
+      stringId := string(param.Idx) + "/" + param.Id
+      m.ToClose.Store(stringId, comm)
+
+      comm.SetErrorHandler(func(err error) {
+        go comm.Close()
+      })
+
+      comm.SetCloseHandler(func() {
+        go m.ToClose.Delete(stringId)
+      })
+    } else if err := scanner.Err(); err != nil {
+      MpiLogger.Warn(err) //--------------------------
     }
 
-    comm, err := m.NewSlaveComm(m.Ctx, m.Host(), stream.(io.ReadWriteCloser), proto, param, inter, remotes)
-    if err != nil {
-      return
-    }
 
-    stringId := string(param.Idx) + "/" + param.Id
-    m.ToClose.Store(stringId, comm)
-
-    comm.SetErrorHandler(func(err error) {
-      go comm.Close()
-    })
-
-    comm.SetCloseHandler(func() {
-      go m.ToClose.Delete(stringId)
-    })
   })
   return nil
 }
