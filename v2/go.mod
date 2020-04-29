@@ -1,4 +1,4 @@
-module github.com/jolatechno/libp2p-mpi-core
+module github.com/jolatechno/libp2p-mpi-core/v2
 
 require (
 	github.com/ipfs/go-ipfs-api v0.0.3
