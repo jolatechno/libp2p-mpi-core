@@ -29,7 +29,7 @@ contract task {
             total_size *= Kernel_size[i];
         }
         kernel_length = total_size;
-        
+
         assigned = new uint256[](kernel_length);
 
         if(stackAddresses.length == stackValue.length) {
@@ -73,7 +73,7 @@ contract task {
     function read(bytes memory key) public view returns (bytes memory value, bool) {
         bytes[] memory values = stack[key];
         uint256 len = values.length;
-        
+
         if(len < safetyLengthTreshold) {
             return (value, false);
         }
