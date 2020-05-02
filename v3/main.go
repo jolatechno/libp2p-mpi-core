@@ -20,8 +20,6 @@ func main() {
 		log.Fatal("not enough args")
 	}
 
-	fmt.Println("\nsender\n") //--------------------------------------
-
 	client, err := ethclient.Dial("http://localhost:7545")
 	if err != nil {
 		log.Fatal(err)
@@ -60,12 +58,34 @@ func main() {
 		Signer: auth.Signer,
 	}
 
+	fmt.Println("\ninterpreter\n") //--------------------------------------
+
 	var ipfs_hash string = "test"
+
+	interp_address, tx0, interp, err := contract.DeployInterpreter(auth, client, ipfs_hash)
+
+	fmt.Println(interp_address.Hex())
+	fmt.Println(tx0.Hash().Hex())
+
+	fmt.Println("\nsender\n") //--------------------------------------
+
 	var kernel_shape []*big.Int = []*big.Int{big.NewInt(1)}
 	var keys, values [][]byte = [][]byte{[]byte("test")}, [][]byte{[]byte("test first")}
-	var proportion, number *big.Int = big.NewInt(0), big.NewInt(1)
+	var proportion, number *big.Int = big.NewInt(2), big.NewInt(1)
 
-	address, tx, instance, err := contract.DeployTask(auth, client, ipfs_hash, kernel_shape, keys, values, proportion, number)
+	nonce, err = client.PendingNonceAt(context.Background(), fromAddress)
+	auth.Nonce = big.NewInt(int64(nonce))
+	transactOpts = bind.TransactOpts{
+		From:   auth.From,
+		Signer: auth.Signer,
+	}
+
+	address, tx, task, err := contract.DeployTask(auth, client, interp_address, kernel_shape, keys, values, proportion, number)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	_, err = task.Advertise(&transactOpts)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -73,14 +93,16 @@ func main() {
 	fmt.Println(address.Hex())
 	fmt.Println(tx.Hash().Hex())
 
-	_ = instance
+	fmt.Println("\ntest\n") //--------------------------------------
+
+	address, ok, err = interp.GetTask(&bind.CallOpts{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Println(address.Hex())
 
 	fmt.Println("\nreceptor\n") //--------------------------------------
-
-	task, err := contract.NewTask(address, client)
-	if err != nil {
-		log.Fatalf("Failed to instantiate contract: %v", err)
-	}
 
 	value, check, err := task.Read(&bind.CallOpts{}, []byte("test"))
 	if err != nil {

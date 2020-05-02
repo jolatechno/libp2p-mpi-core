@@ -1,28 +1,72 @@
 pragma solidity  >=0.5.16 <0.7.0;
 pragma experimental ABIEncoderV2;
 
+contract interpreter {
+    string private ipfsHash; //interpretter folder
+    uint256 oppen;
+
+    address[] private owner;
+    task[] private list;
+    bool[] private Done;
+
+    constructor(string memory IpfsHash) public {
+        ipfsHash = IpfsHash;
+    }
+
+    function advertise(task Task) public {
+        Done.push(false);
+        list.push(Task);
+        owner.push(msg.sender);
+        oppen++;
+    }
+
+    function done(task Task) public {
+        for(uint256 i = 0; i < list.length; i++) {
+            if(list[i] == Task) {
+                if(owner[i] == msg.sender && !Done[i]) {
+                    Done[i] = true;
+                    oppen--;
+                }
+                return;
+            }
+        }
+    }
+
+    function getTask() public view returns(task Task, bool) {
+        if(list.length == 0) {
+            return (Task, false);
+        }
+
+        uint256 task_idk = 0;
+
+        //random selection will be implemented later
+
+        return (list[task_idk], true);
+    }
+}
+
 contract task {
     address private owner;
     mapping(bytes => bytes[]) private stack;
     mapping(bytes => address[]) private senders;
 
-    string private ipfsHash; //interpretter folder
+    interpreter private ipfsObject;
 
-    uint128 private safetyProportionTreshold;
+    uint128 private safetyProportionTreshold; //the proportion is actually (safetyProportionTreshold - 1)/safetyProportionTreshold
     uint128 private safetyLengthTreshold;
 
     uint256[] private kernel_size;
     uint256 private kernel_length;
     uint256[] private assigned;
 
-    constructor(string memory IpfsHash, uint256[] memory Kernel_size,
+    constructor(interpreter IpfsObject, uint256[] memory Kernel_size,
     bytes[] memory stackAddresses, bytes[] memory stackValue,
     uint128 SafetyProportionTreshold, uint128 SafetyLengthTreshold) public {
         safetyProportionTreshold = SafetyProportionTreshold;
         safetyLengthTreshold = SafetyLengthTreshold;
-        ipfsHash = IpfsHash;
         kernel_size = Kernel_size;
         owner = msg.sender;
+        ipfsObject = IpfsObject;
 
         uint256 total_size = 1;
         for(uint256 i = 0; i < Kernel_size.length; i++) {
@@ -38,6 +82,20 @@ contract task {
                 senders[stackAddresses[i]].push(msg.sender);
             }
         }
+    }
+
+    function advertise() public {
+        if(msg.sender != owner) {
+            return;
+        }
+        ipfsObject.advertise(this);
+    }
+
+    function done() public {
+        if(msg.sender != owner) {
+            return;
+        }
+        ipfsObject.done(this);
     }
 
     function getCommand() public view returns (uint256[] memory kernel_idxs, string memory error) {
@@ -99,7 +157,7 @@ contract task {
             for(uint256 j = 0;  j <= i; j++) {
                 if(keccak256(values[i]) == keccak256(values[j])) {
                     proportions[j]++;
-                    if(proportions[j]/len >= safetyProportionTreshold) {
+                    if(proportions[j] * safetyProportionTreshold >=  len * (safetyProportionTreshold - 1)) { //<=> proportions[j]/len >= (safetyProportionTreshold - 1)/safetyProportionTreshold
                         return (values[i], true);
                     }
                 }
