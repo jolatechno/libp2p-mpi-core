@@ -40,14 +40,13 @@ contract task {
         }
     }
 
-    function getCommand() public returns (uint256[] memory kernel_idxs, string memory error) {
+    function getCommand() public view returns (uint256[] memory kernel_idxs, string memory error) {
         uint256[] memory size = kernel_size;
         uint256 kernel_idx = 0;
         kernel_idxs = new uint256[](kernel_size.length);
 
         //random selection will be implemented later
 
-        assigned[kernel_idx]++; //keeping track of which kernel idx as been assigned
         for(uint256 i = 0; i < size.length; i++) {
             kernel_idxs[i] = kernel_idx % size[i];
             kernel_idx = kernel_idx / size[i];
@@ -56,9 +55,20 @@ contract task {
         return (kernel_idxs, "not yet implemented");
     }
 
+    function acceptCommand(uint256[] memory kernel_idxs) public {
+        uint256 kernel_idx = 0;
+        uint256 acc = 1;
+
+        for(uint256 i = 0; i < kernel_idxs.length; i++) {
+            kernel_idx += acc*kernel_idxs[i];
+            acc *= kernel_size[i];
+        }
+        assigned[kernel_idx]++; //keeping track of which kernel idx as been assigned
+    }
+
     function push(bytes memory key, bytes memory value) public {
-        address[] memory addresses = senders[key];
         if(msg.sender != owner) {
+            address[] memory addresses = senders[key];
             for(uint256 i = 0; i < addresses.length; i++) { //to prevent peers from validating themselfs
                 if(msg.sender == addresses[i]) {
                     return;
@@ -72,6 +82,7 @@ contract task {
 
     function read(bytes memory key) public view returns (bytes memory value, bool) {
         bytes[] memory values = stack[key];
+        address[] memory addresses = senders[key];
         uint256 len = values.length;
 
         if(len < safetyLengthTreshold) {
@@ -80,14 +91,17 @@ contract task {
 
         uint256[] memory proportions = new uint256[](len);
 
-        for(uint256 i = 1; i < len; i++) {
+        for(uint256 i = 0; i < len; i++) {
+            if(addresses[i] == owner) {
+                return (values[i], true);
+            }
+
             for(uint256 j = 0;  j <= i; j++) {
                 if(keccak256(values[i]) == keccak256(values[j])) {
                     proportions[j]++;
-                    if(proportions[j]/len > safetyProportionTreshold) {
+                    if(proportions[j]/len >= safetyProportionTreshold) {
                         return (values[i], true);
                     }
-                    break;
                 }
             }
         }
