@@ -12,6 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/jolatechno/libp2p-mpi-core/v3/contract"
 )
 
 func main() {
@@ -49,13 +50,17 @@ func main() {
 	auth := bind.NewKeyedTransactor(privateKey)
 	auth.Nonce = big.NewInt(int64(nonce))
 	auth.Value = big.NewInt(0)     // in wei
-	auth.GasLimit = uint64(300000) // in units
+	auth.GasLimit = uint64(6721974) // in units
 	auth.GasPrice = gasPrice
 
 	fmt.Println(auth)
 
-	/*input := "1.0"
-	address, tx, instance, err := DeployStore(auth, client, input)
+	var ipfs_hash string = "test"
+	var kernel_shape []*big.Int = []*big.Int{big.NewInt(1)}
+	var keys, values [][]byte = [][]byte{[]byte{}}, [][]byte{[]byte{}}
+	var proportion, number *big.Int = big.NewInt(1), big.NewInt(1)
+
+	address, tx, instance, err := contract.DeployTask(auth, client, ipfs_hash, kernel_shape, keys, values, proportion, number)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -63,5 +68,5 @@ func main() {
 	fmt.Println(address.Hex())
 	fmt.Println(tx.Hash().Hex())
 
-	_ = instance*/
+	_ = instance
 }
