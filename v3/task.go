@@ -192,3 +192,13 @@ func (t *Task)Push(address []byte, value []byte) (err error) {
 	_, err = t.Task.Push(t.Auth, address, value)
 	return err
 }
+
+func (t *Task)Done() (err error) {
+	err = update(t.Auth, t.Client)
+	if err != nil {
+		return err
+	}
+
+	_, err = t.Task.Done(t.Auth)
+	return err
+}

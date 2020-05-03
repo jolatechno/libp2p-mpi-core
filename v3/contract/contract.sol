@@ -4,11 +4,9 @@ pragma experimental ABIEncoderV2;
 contract random {
     function rand(uint256 range) internal view returns(uint256) {
         uint256 seed = uint256(keccak256(abi.encodePacked(
-            block.timestamp + block.difficulty +
-            ((uint256(keccak256(abi.encodePacked(block.coinbase)))) / (now)) +
-            block.gaslimit + 
-            ((uint256(keccak256(abi.encodePacked(msg.sender)))) / (now)) +
-            block.number
+            block.timestamp + block.number +
+            uint256(keccak256(abi.encodePacked(block.coinbase))) / block.timestamp +
+            uint256(keccak256(abi.encodePacked(msg.sender))) / block.timestamp
         )));
 
         return seed % range;
@@ -54,11 +52,11 @@ contract interpreter is random {
         uint256 task_idx = rand(oppen); //random number
 
         for(uint256 i = 0; i < list.length; i++) {
-            if(task_idx == 0) {
+            if(task_idx == 0 && !Done[i]) {
                 return (list[i], true);
             }
 
-            if(Done[i]) {
+            if(!Done[i]) {
                 task_idx--;
             }
         }

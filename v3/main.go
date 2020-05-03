@@ -58,9 +58,17 @@ func main() {
 
 	fmt.Println("\ninterpreter\n") //--------------------------------------
 
-	interp, interp_address, err := NewInterp(auth, client, Shell, "uselless for now")
+	_, interp_address, err := NewInterp(auth, client, Shell, "./contract")
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println(interp_address.Hex())
+
+	interp, err := LoadInterp(client, interp_address)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	fmt.Println("\nstack\n") //--------------------------------------
 
@@ -127,6 +135,11 @@ func main() {
 			fmt.Printf("value: %q for key %q\n", value, read_k)
 		}
 
+		err = task.Done()
+		if err != nil {
+			log.Fatal(err)
+		}
+
 		task, err = NewTask(auth, client, interp_address, 
 			stack, stackAddr,
 			kernel_shape, [][]byte{}, [][]byte{}, inter,
@@ -134,5 +147,22 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
+
+		address, ok, err := interp.GetTask(&bind.CallOpts{})
+		if !ok {
+			log.Fatal("not interp")
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println("\n", address.Hex(), "\n")
+
+		task, err := LoadTask(auth, client, address)
+		if err != nil {
+			log.Fatal(1, err)
+		}
+
+		task.SetIntermediary(inter)
 	}
 }

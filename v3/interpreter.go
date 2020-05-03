@@ -10,7 +10,7 @@ import (
 )
 
 func NewInterp(auth *bind.TransactOpts, client *ethclient.Client, Shell *shell.Shell, path string) (_ *contract.Interpreter, interp_address common.Address, err error) {
-	ipfs_hash, err := "test", nil
+	ipfs_hash, err := Shell.AddDir(path)
 	if err != nil {
 		return nil, interp_address, err
 	}
