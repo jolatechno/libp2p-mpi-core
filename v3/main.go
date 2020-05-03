@@ -12,7 +12,7 @@ import (
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/jolatechno/libp2p-mpi-core/v3/contract"
+	shell "github.com/ipfs/go-ipfs-api"
 )
 
 func main() {
@@ -20,7 +20,10 @@ func main() {
 		log.Fatal("not enough args")
 	}
 
-	client, err := ethclient.Dial("http://localhost:7545")
+	Shell := shell.NewShell("/ip4/127.0.0.1/tcp/5001")
+	inter := &MessageShell{ Shell:Shell }
+
+	client, err := ethclient.Dial("ws://localhost:7545")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,77 +56,83 @@ func main() {
 	auth.GasLimit = uint64(6721974) // in units
 	auth.GasPrice = gasPrice
 
-	transactOpts := bind.TransactOpts{
-		From:   auth.From,
-		Signer: auth.Signer,
-	}
-
 	fmt.Println("\ninterpreter\n") //--------------------------------------
 
-	var ipfs_hash string = "test"
-
-	interp_address, tx0, interp, err := contract.DeployInterpreter(auth, client, ipfs_hash)
+	interp, interp_address, err := NewInterp(auth, client, Shell, "uselless for now")
 
 	fmt.Println(interp_address.Hex())
-	fmt.Println(tx0.Hash().Hex())
 
-	fmt.Println("\nsender\n") //--------------------------------------
+	fmt.Println("\nstack\n") //--------------------------------------
 
-	var kernel_shape []*big.Int = []*big.Int{big.NewInt(1)}
-	var keys, values [][]byte = [][]byte{[]byte("test")}, [][]byte{[]byte("test first")}
 	var proportion, number *big.Int = big.NewInt(2), big.NewInt(1)
 
-	nonce, err = client.PendingNonceAt(context.Background(), fromAddress)
-	auth.Nonce = big.NewInt(int64(nonce))
-	transactOpts = bind.TransactOpts{
-		From:   auth.From,
-		Signer: auth.Signer,
-	}
-
-	address, tx, task, err := contract.DeployTask(auth, client, interp_address, kernel_shape, keys, values, proportion, number)
+	stack, stackAddr, err := NewStack(auth, client, proportion, number)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	_, err = task.Advertise(&transactOpts)
+	fmt.Println(stackAddr.Hex())
+
+	fmt.Println("\ntask\n") //--------------------------------------
+
+	var kernel_shape []*big.Int = []*big.Int{big.NewInt(1)}
+	var keys, values [][]byte = [][]byte{}, [][]byte{}
+
+	for j := 0; j < 3; j++ {
+		keys = append(keys, []byte(fmt.Sprintf("key 0 %d", j)))
+		values = append(values, []byte(fmt.Sprintf("value 0 %d", j)))
+	}
+
+	_ , err = NewTask(auth, client, interp_address, 
+		stack, stackAddr,
+		kernel_shape, keys, values, inter,
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	address, ok, err := interp.GetTask(&bind.CallOpts{})
 	if err != nil {
 		log.Fatal(err)
 	}
 
 	fmt.Println(address.Hex())
-	fmt.Println(tx.Hash().Hex())
 
-	fmt.Println("\ntest\n") //--------------------------------------
-
-	address, ok, err = interp.GetTask(&bind.CallOpts{})
+	task, err := LoadTask(auth, client, address)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal(1, err)
 	}
 
-	fmt.Println(address.Hex())
+	task.SetIntermediary(inter)
 
 	fmt.Println("\nreceptor\n") //--------------------------------------
 
-	value, check, err := task.Read(&bind.CallOpts{}, []byte("test"))
-	if err != nil {
-		log.Fatal(err)
-	}
+	for i := 0; i < 3; i++ {
+		for j := 0; j < 3; j++ {
+			k := []byte(fmt.Sprintf("key %d %d", i + 1, j))
+			v := []byte(fmt.Sprintf("value %d %d", i + 1, j))
 
-	fmt.Printf("value: %q for key %q, read: %t\n", value, "test", check)
+			err = task.Push(k, v)
+			if err != nil {
+				log.Fatal(err)
+			}
 
-	for i := 0; i < 5; i++ {
-		bytes := []byte(fmt.Sprintf("test %d", i))
+			read_k := []byte(fmt.Sprintf("key %d %d", i, j))
 
-		_, err = task.Push(&transactOpts, bytes, bytes)
+			value, err := task.Read(read_k)
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			fmt.Printf("value: %q for key %q\n", value, read_k)
+		}
+
+		task, err = NewTask(auth, client, interp_address, 
+			stack, stackAddr,
+			kernel_shape, [][]byte{}, [][]byte{}, inter,
+		)
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		value, check, err = task.Read(&bind.CallOpts{}, bytes)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		fmt.Printf("value: %q for key %q, read: %t\n", value, bytes, check)
 	}
 }
