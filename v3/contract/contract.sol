@@ -1,7 +1,21 @@
 pragma solidity  >=0.5.16 <0.7.0;
 pragma experimental ABIEncoderV2;
 
-contract interpreter {
+contract random {
+    function rand(uint256 range) internal view returns(uint256) {
+        uint256 seed = uint256(keccak256(abi.encodePacked(
+            block.timestamp + block.difficulty +
+            ((uint256(keccak256(abi.encodePacked(block.coinbase)))) / (now)) +
+            block.gaslimit + 
+            ((uint256(keccak256(abi.encodePacked(msg.sender)))) / (now)) +
+            block.number
+        )));
+
+        return seed % range;
+    }
+}
+
+contract interpreter is random {
     string private ipfsHash; //interpretter folder
     uint256 oppen;
 
@@ -33,19 +47,27 @@ contract interpreter {
     }
 
     function getTask() public view returns(task Task, bool) {
-        if(list.length == 0) {
+        if(oppen == 0) {
             return (Task, false);
         }
 
-        uint256 task_idk = 0;
+        uint256 task_idx = rand(oppen); //random number
 
-        //random selection will be implemented later
+        for(uint256 i = 0; i < list.length; i++) {
+            if(task_idx == 0) {
+                return (list[i], true);
+            }
 
-        return (list[task_idk], true);
+            if(Done[i]) {
+                task_idx--;
+            }
+        }
+
+        return (Task, false);
     }
 }
 
-contract task {
+contract task is random {
     address private owner;
     mapping(bytes => bytes[]) private stack;
     mapping(bytes => address[]) private senders;
@@ -99,18 +121,12 @@ contract task {
     }
 
     function getCommand() public view returns (uint256[] memory kernel_idxs, string memory error) {
-        uint256[] memory size = kernel_size;
-        uint256 kernel_idx = 0;
         kernel_idxs = new uint256[](kernel_size.length);
-
-        //random selection will be implemented later
-
-        for(uint256 i = 0; i < size.length; i++) {
-            kernel_idxs[i] = kernel_idx % size[i];
-            kernel_idx = kernel_idx / size[i];
+        for(uint256 i = 0; i < kernel_size.length; i++) {
+            kernel_idxs[i] = rand(kernel_size[i]); //random number
         }
 
-        return (kernel_idxs, "not yet implemented");
+        return (kernel_idxs, "");
     }
 
     function acceptCommand(uint256[] memory kernel_idxs) public {
