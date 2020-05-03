@@ -65,7 +65,7 @@ contract interpreter is random {
     }
 }
 
-contract stack is random {
+contract stack {
     address private owner;
     mapping(bytes => bytes[]) private mem;
     mapping(bytes => address[]) private senders;
