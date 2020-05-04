@@ -1,97 +1,73 @@
 pragma solidity  >=0.5.16 <0.7.0;
 pragma experimental ABIEncoderV2;
 
-contract random {
-    function rand(uint256 range) internal view returns(uint256) {
-        uint256 seed = uint256(keccak256(abi.encodePacked(
-            block.timestamp + block.number +
-            uint256(keccak256(abi.encodePacked(block.coinbase))) / block.timestamp +
-            uint256(keccak256(abi.encodePacked(msg.sender))) / block.timestamp
-        )));
+import "./utils.sol";
 
-        return seed % range;
-    }
-}
-
-contract interpreter is random {
+contract interpreter is random, identity {
     string private ipfsHash; //interpretter folder
-    uint256 oppen;
-
-    address[] private owner;
+    address[] private owners;
     task[] private list;
-    bool[] private Done;
 
     constructor(string memory IpfsHash) public {
         ipfsHash = IpfsHash;
     }
 
     function advertise(task Task) public {
-        Done.push(false);
         list.push(Task);
-        owner.push(msg.sender);
-        oppen++;
+        owners.push(msg.sender);
     }
 
-    function done(task Task) public {
+    function done(task Task) public onlyBy(address(Task)) {
         for(uint256 i = 0; i < list.length; i++) {
             if(list[i] == Task) {
-                if(owner[i] == msg.sender && !Done[i]) {
-                    Done[i] = true;
-                    oppen--;
-                }
-                return;
+                delete list[i];
+                delete owners[i];
             }
         }
     }
 
     function getTask() public view returns(task Task, bool) {
-        if(oppen == 0) {
+        if(list.length == 0) {
             return (Task, false);
         }
 
-        uint256 task_idx = rand(oppen); //random number
-
-        for(uint256 i = 0; i < list.length; i++) {
-            if(task_idx == 0 && !Done[i]) {
-                return (list[i], true);
-            }
-
-            if(!Done[i]) {
-                task_idx--;
-            }
-        }
-
-        return (Task, false);
+        uint256 task_idx = rand(list.length); //random number
+        return (list[task_idx], true);
     }
 }
 
-contract stack {
-    address private owner;
+contract stack is identity {
     mapping(bytes => bytes[]) private mem;
     mapping(bytes => address[]) private senders;
+
+    address[] autherized;
 
     uint128 private safetyProportionTreshold; //the proportion is actually (safetyProportionTreshold - 1)/safetyProportionTreshold
     uint128 private safetyLengthTreshold;
 
     constructor(uint128 SafetyProportionTreshold, uint128 SafetyLengthTreshold) public {
-        owner = msg.sender;
         safetyProportionTreshold = SafetyProportionTreshold;
         safetyLengthTreshold = SafetyLengthTreshold;
+        autherized.push(msg.sender);
     }
 
-    function push(address sender, bytes memory key, bytes memory value) public {
-        require(msg.sender == owner, "not owner !");
+    function newTask(interpreter IpfsObject, uint256[] memory Kernel_size) public sec() {
+        task Task = new task(this, IpfsObject, Kernel_size);
+        Task.transfer(msg.sender);
+        autherized.push(address(Task));
+    }
 
-        if(sender != owner) {
+    function push(address sender, bytes memory key, bytes memory value) public oneOf(autherized) {
+        if(sender != owner()) {
             address[] memory addresses = senders[key];
             for(uint256 i = 0; i < addresses.length; i++) { //to prevent peers from validating themselfs
-                if(msg.sender == addresses[i]) {
+                if(sender == addresses[i]) {
                     return;
                 }
             }
         }
 
-        senders[key].push(msg.sender);
+        senders[key].push(sender);
         mem[key].push(value);
     }
 
@@ -107,7 +83,7 @@ contract stack {
         uint256[] memory proportions = new uint256[](len);
 
         for(uint256 i = 0; i < len; i++) {
-            if(addresses[i] == owner) {
+            if(addresses[i] == owner()) {
                 return (values[i], true);
             }
 
@@ -125,9 +101,7 @@ contract stack {
     }
 }
 
-contract task is random {
-    address private owner;
-
+contract task is random, identity {
     stack mem;
     interpreter private ipfsObject;
 
@@ -135,11 +109,10 @@ contract task is random {
     uint256 private kernel_length;
     uint256[] private assigned;
 
-    event Push(address  sender, bytes  key, bytes  value);
+    //event Push(address  sender, bytes  key, bytes  value);
 
     constructor(stack Stack, interpreter IpfsObject, uint256[] memory Kernel_size) public {
         kernel_size = Kernel_size;
-        owner = msg.sender;
         ipfsObject = IpfsObject;
         mem = Stack;
 
@@ -154,9 +127,7 @@ contract task is random {
         ipfsObject.advertise(this);
     }
 
-    function done() public {
-        require(msg.sender == owner, "not owner !");
-
+    function done() public sec() {
         ipfsObject.done(this);
     }
 
@@ -181,7 +152,7 @@ contract task is random {
     }
 
     function push(bytes memory key, bytes memory value) public {
-        emit Push(msg.sender, key, value);
+        mem.push(msg.sender, key, value);
     }
 
     function read(bytes memory key) public view returns (bytes memory value, bool) {

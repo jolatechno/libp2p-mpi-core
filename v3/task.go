@@ -1,18 +1,12 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"math/big"
-	"strings"
 
 	"github.com/jolatechno/libp2p-mpi-core/v3/contract"
-
-	"github.com/ethereum/go-ethereum"
-	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 )
 
@@ -38,16 +32,16 @@ type Intermediary interface {
 }
 
 func NewStack(auth *bind.TransactOpts, client *ethclient.Client,
-	proportion *big.Int, number *big.Int) (_ *contract.Stack, stackAddr common.Address, _ error) {
+	proportion *big.Int, number *big.Int) (_ *contract.Stack, _ error) {
 	defer recover()
 
 	err := update(auth, client)
 	if err != nil {
-		return nil, stackAddr, err
+		return nil, err
 	}
 
-	address, _, stack, err := contract.DeployStack(auth, client, proportion, number)
-	return stack, address, err
+	_, _, stack, err := contract.DeployStack(auth, client, proportion, number)
+	return stack, err
 }
 
 func LoadTask(auth *bind.TransactOpts, client *ethclient.Client, taskAddress common.Address) (*Task, error) {
@@ -64,88 +58,37 @@ func LoadTask(auth *bind.TransactOpts, client *ethclient.Client, taskAddress com
 }
 
 func NewTask(auth *bind.TransactOpts, client *ethclient.Client, ipfsObjectAddress common.Address,
-	stack *contract.Stack, stackAddress common.Address,
+	stack *contract.Stack,
 	kernel_shape []*big.Int, keys [][]byte, values [][]byte,
-	inter Intermediary) (_ *Task, err error) {
+	inter Intermediary) (err error) {
 	defer recover()
 	
 	for i, val := range values {
 		if inter != nil {
 			val, err = inter.Write(val)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		}
 
 		err := update(auth, client)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		_, err = stack.Push(auth, auth.From, keys[i], val)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	err = update(auth, client)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	address, _, task, err := contract.DeployTask(auth, client, stackAddress, ipfsObjectAddress, kernel_shape)
-	if err != nil {
-		return nil, err
-	}
-
-	contractAbi, err := abi.JSON(strings.NewReader(string(contract.TaskABI)))
-	if err != nil {
-		return nil, err
-	}
-
-	query := ethereum.FilterQuery{
-		Addresses: []common.Address{address},
-	}
-
-	logs := make(chan types.Log)
-	sub, err := client.SubscribeFilterLogs(context.Background(), query, logs)
-	if err != nil {
-		return nil, err
-	}
-
-	go func() {
-		for {
-			select {
-			case err := <-sub.Err():
-				panic(err)
-			case vLog := <-logs:
-				var pushEvent pushReq
-
-				err = contractAbi.Unpack(&pushEvent, "Push", vLog.Data)
-				if err != nil {
-					panic(err)
-				}
-
-				err = update(auth, client)
-				if err != nil {
-					panic(err)
-				}
-
-				_, err := stack.Push(auth, pushEvent.Sender, pushEvent.Key, pushEvent.Value)
-
-				if err != nil {
-					panic(err)
-				}
-			}
-		}
-	}()
-	
-	return &Task{
-		Task: task,
-		Auth: auth,
-		Client: client,
-		Inter: inter,
-	}, nil
+	_, err = stack.NewTask(auth, ipfsObjectAddress, kernel_shape)
+	return err
 }
 
 type Task struct {

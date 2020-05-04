@@ -70,16 +70,12 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("\nstack\n") //--------------------------------------
-
 	var proportion, number *big.Int = big.NewInt(2), big.NewInt(1)
 
-	stack, stackAddr, err := NewStack(auth, client, proportion, number)
+	stack, err := NewStack(auth, client, proportion, number)
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Println(stackAddr.Hex())
 
 	fmt.Println("\ntask\n") //--------------------------------------
 
@@ -91,8 +87,7 @@ func main() {
 		values = append(values, []byte(fmt.Sprintf("value 0 %d", j)))
 	}
 
-	_ , err = NewTask(auth, client, interp_address, 
-		stack, stackAddr,
+	err = NewTask(auth, client, interp_address, stack,
 		kernel_shape, keys, values, inter,
 	)
 	if err != nil {
@@ -140,8 +135,7 @@ func main() {
 			log.Fatal(err)
 		}
 
-		task, err = NewTask(auth, client, interp_address, 
-			stack, stackAddr,
+		err = NewTask(auth, client, interp_address, stack,
 			kernel_shape, [][]byte{}, [][]byte{}, inter,
 		)
 		if err != nil {
