@@ -4,18 +4,12 @@ contract identity {
     address private Owner = msg.sender;
 
     modifier sec() {
-        require(
-            msg.sender == Owner,
-            "sender not authorized"
-        );
+        require(msg.sender == Owner, "sender not authorized");
         _;
     }
 
     modifier onlyBy(address account) {
-        require(
-            msg.sender == account,
-            "sender not authorized"
-        );
+        require(msg.sender == account, "sender not authorized");
         _;
     }
 
@@ -40,12 +34,60 @@ contract identity {
     }
 }
 
+contract stake is identity {
+    address[] private payer;
+    uint256[] private balance;
+
+    modifier cost(uint256 value) {
+        require(msg.value == value, "value is not right");
+        payer.push(msg.sender);
+        balance.push(msg.value);
+        _;
+    }
+
+    modifier costAtLeast(uint256 value) {
+        require(msg.value >= value, "value is not enough");
+        payer.push(msg.sender);
+        balance.push(msg.value);
+        _;
+    }
+
+    function complete(uint256 reward) public payable {
+        for(uint256 i = payer.length - 1; i >= 0; i--) {
+            if(payer[i] == msg.sender) {
+                msg.sender.transfer(balance[i] + reward);
+                delete_idx(i);
+            }
+        }
+    }
+
+    function refund() public payable {
+        for(uint256 i = payer.length - 1; i >= 0; i--) {
+            if(payer[i] == msg.sender) {
+                msg.sender.transfer(balance[i]);
+                delete_idx(i);
+            }
+        }
+    }
+
+    function delete_user(address user) public sec() {
+        for(uint256 i = payer.length - 1; i >= 0; i--) {
+            if(payer[i] == user) {
+                delete_idx(i);
+            }
+        }
+    }
+
+    function delete_idx(uint256 i) public sec() {
+        delete payer[i];
+        delete balance[i];
+    }
+}
+
 contract random {
     function rand(uint256 range) internal view returns(uint256) {
         uint256 seed = uint256(keccak256(abi.encodePacked(
-            block.timestamp + block.number +
-            uint256(keccak256(abi.encodePacked(block.coinbase))) / block.timestamp +
-            uint256(keccak256(abi.encodePacked(msg.sender))) / block.timestamp
+            block.number + uint256(keccak256(abi.encodePacked(msg.sender))) / block.number
         )));
 
         return seed % range;

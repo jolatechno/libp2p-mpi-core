@@ -77,7 +77,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	fmt.Println("\ntask\n") //--------------------------------------
+	fmt.Println("\ntask") //--------------------------------------
 
 	var kernel_shape []*big.Int = []*big.Int{big.NewInt(1)}
 	var keys, values [][]byte = [][]byte{}, [][]byte{}
@@ -94,23 +94,25 @@ func main() {
 		log.Fatal(err)
 	}
 
-	address, ok, err := interp.GetTask(&bind.CallOpts{})
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Println(address.Hex())
-
-	task, err := LoadTask(auth, client, address)
-	if err != nil {
-		log.Fatal(1, err)
-	}
-
-	task.SetIntermediary(inter)
-
-	fmt.Println("\nreceptor\n") //--------------------------------------
-
 	for i := 0; i < 3; i++ {
+
+		address, err := interp.GetTask(&bind.CallOpts{})
+		if !ok {
+			log.Fatal("not interp")
+		}
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		fmt.Println("\n", address.Hex(), "\n")
+
+		task, err := LoadTask(auth, client, address)
+		if err != nil {
+			log.Fatal(1, err)
+		}
+
+		task.SetIntermediary(inter)
+
 		for j := 0; j < 3; j++ {
 			k := []byte(fmt.Sprintf("key %d %d", i + 1, j))
 			v := []byte(fmt.Sprintf("value %d %d", i + 1, j))
@@ -141,22 +143,5 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-
-		address, ok, err := interp.GetTask(&bind.CallOpts{})
-		if !ok {
-			log.Fatal("not interp")
-		}
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		fmt.Println("\n", address.Hex(), "\n")
-
-		task, err := LoadTask(auth, client, address)
-		if err != nil {
-			log.Fatal(1, err)
-		}
-
-		task.SetIntermediary(inter)
 	}
 }

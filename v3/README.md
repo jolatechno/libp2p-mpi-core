@@ -9,3 +9,5 @@
 This version will use ethereum smart contracts to handle message sharing which will remove the need for peer reseting since messages are held by thr contract on the blockChain.
 
 Fault tollerence will be handled by the possibility of multiple node calculating independently the same results.
+
+The requirements of the algorithm are specified in the [requirements.md](./requirements.md) file.
